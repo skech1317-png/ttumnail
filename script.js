@@ -331,12 +331,36 @@ ${licensedFontList}
         const data = await response.json();
         const text = data.candidates[0].content.parts[0].text;
 
-        // JSON 추출
-        const jsonMatch = text.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
+        // JSON 추출 (더 안전한 파싱)
+        try {
+            // 먼저 전체 텍스트에서 JSON 배열 찾기
+            const jsonMatch = text.match(/\[\s*\{[\s\S]*\}\s*\]/);
+            if (jsonMatch) {
+                // JSON 문자열 정리 (줄바꿈, 특수문자 처리)
+                let jsonStr = jsonMatch[0];
+                // 제어 문자 제거
+                jsonStr = jsonStr.replace(/[\x00-\x1F\x7F]/g, ' ');
+                // 연속된 공백 정리
+                jsonStr = jsonStr.replace(/\s+/g, ' ');
+
+                const parsed = JSON.parse(jsonStr);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    return parsed;
+                }
+            }
+
+            // 백업: 개별 JSON 객체들 찾기
+            const objects = text.match(/\{[^{}]*"imagePrompt"[^{}]*\}/g);
+            if (objects && objects.length >= 3) {
+                return objects.slice(0, 3).map(obj => JSON.parse(obj));
+            }
+
+            throw new Error('유효한 JSON을 찾을 수 없습니다');
+        } catch (parseErr) {
+            console.error('JSON 파싱 오류:', parseErr);
+            console.error('원본 텍스트:', text);
+            throw new Error('AI 응답 파싱 실패. 다시 시도해주세요.');
         }
-        throw new Error('JSON 파싱 실패');
     } catch (err) {
         console.error('Gemini API error:', err);
         throw err;
