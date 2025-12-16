@@ -634,6 +634,34 @@ async function createThumbnailFromUpload(canvasId, style, imageDataUrl, text, su
     return canvas.toDataURL('image/png');
 }
 
+// 유튜브 URL에서 비디오 ID 추출
+function extractVideoId(url) {
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[7].length === 11) ? match[7] : null;
+}
+
+// 유튜브 비디오 정보 가져오기 (oEmbed API 사용)
+async function fetchVideoInfo(videoId) {
+    try {
+        const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+        if (!response.ok) throw new Error('영상 정보를 가져올 수 없습니다.');
+        const data = await response.json();
+        return {
+            title: data.title,
+            channel: data.author_name,
+            thumbnailUrl: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+        };
+    } catch (error) {
+        // 폴백: 기본 정보 반환
+        return {
+            title: '영상 제목',
+            channel: '채널명',
+            thumbnailUrl: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+        };
+    }
+}
+
 function showApiStatus(msg, type) {
     const status = document.getElementById('api-status');
     status.textContent = msg;
