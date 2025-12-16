@@ -111,6 +111,7 @@ let userHorizontalMargin = 60; // 가로 여백
 
 // 초기화
 let uploadedImageData = null; // 업로드된 이미지 데이터 저장
+let hybridImageData = null;   // 하이브리드 모드 이미지 데이터
 
 document.addEventListener('DOMContentLoaded', () => {
     const apiInput = document.getElementById('api-key');
@@ -165,6 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const mode = tab.dataset.mode;
             document.getElementById('url-mode').classList.toggle('hidden', mode !== 'url');
+            document.getElementById('hybrid-mode').classList.toggle('hidden', mode !== 'hybrid');
             document.getElementById('upload-mode').classList.toggle('hidden', mode !== 'upload');
         };
     });
@@ -234,6 +236,83 @@ document.addEventListener('DOMContentLoaded', () => {
     // 이미지 모드 생성 버튼
     if (generateFromImageBtn) {
         generateFromImageBtn.onclick = generateFromUploadedImage;
+    }
+
+    // ===== 하이브리드 모드 기능 =====
+    const hybridImageArea = document.getElementById('hybrid-image-area');
+    const hybridImageInput = document.getElementById('hybrid-image-upload');
+    const hybridPlaceholder = document.getElementById('hybrid-placeholder');
+    const hybridPreview = document.getElementById('hybrid-preview');
+    const generateHybridBtn = document.getElementById('generate-hybrid-btn');
+    const hybridUrlInput = document.getElementById('hybrid-url');
+
+    // 하이브리드 이미지 업로드 클릭
+    if (hybridImageArea) {
+        hybridImageArea.onclick = () => hybridImageInput.click();
+    }
+
+    // 하이브리드 이미지 선택
+    if (hybridImageInput) {
+        hybridImageInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) handleHybridImageUpload(file);
+        };
+    }
+
+    // 하이브리드 드래그 앤 드롭
+    if (hybridImageArea) {
+        hybridImageArea.ondragover = (e) => {
+            e.preventDefault();
+            hybridImageArea.classList.add('drag-over');
+        };
+        hybridImageArea.ondragleave = () => {
+            hybridImageArea.classList.remove('drag-over');
+        };
+        hybridImageArea.ondrop = (e) => {
+            e.preventDefault();
+            hybridImageArea.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                handleHybridImageUpload(file);
+            }
+        };
+    }
+
+    // 하이브리드 이미지 업로드 처리
+    function handleHybridImageUpload(file) {
+        if (file.size > 10 * 1024 * 1024) {
+            showError('이미지 크기는 10MB 이하여야 합니다.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            hybridImageData = e.target.result;
+            hybridPreview.src = hybridImageData;
+            hybridPreview.classList.remove('hidden');
+            hybridPlaceholder.style.display = 'none';
+            updateHybridButtonState();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // 하이브리드 버튼 상태 업데이트
+    function updateHybridButtonState() {
+        const hasImage = !!hybridImageData;
+        const hasUrl = hybridUrlInput && hybridUrlInput.value.trim().length > 0;
+        if (generateHybridBtn) {
+            generateHybridBtn.disabled = !(hasImage && hasUrl && apiKey);
+        }
+    }
+
+    // URL 입력 시 버튼 상태 업데이트
+    if (hybridUrlInput) {
+        hybridUrlInput.oninput = updateHybridButtonState;
+    }
+
+    // 하이브리드 생성 버튼
+    if (generateHybridBtn) {
+        generateHybridBtn.onclick = generateHybridThumbnail;
     }
 
     // 옵션 버튼 핸들러 - 글자 위치
@@ -337,6 +416,101 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 });
+
+// 하이브리드 모드: 사용자 이미지 + AI 텍스트 생성
+async function generateHybridThumbnail() {
+    const hybridUrl = document.getElementById('hybrid-url').value.trim();
+    const btn = document.getElementById('generate-hybrid-btn');
+
+    if (!hybridImageData) {
+        showError('이미지를 먼저 업로드해주세요.');
+        return;
+    }
+    if (!hybridUrl) {
+        showError('유튜브 URL을 입력해주세요.');
+        return;
+    }
+    if (!apiKey) {
+        showError('API 키를 먼저 설정해주세요.');
+        return;
+    }
+
+    hideError();
+    btn.disabled = true;
+
+    document.getElementById('loading-section').classList.remove('hidden');
+    document.getElementById('analysis-section').classList.add('hidden');
+    document.getElementById('generated-section').classList.add('hidden');
+
+    try {
+        updateStep(0);
+        // URL에서 비디오 정보 추출
+        const videoId = extractVideoId(hybridUrl);
+        if (!videoId) throw new Error('유효한 유튜브 URL이 아닙니다.');
+
+        const videoInfo = await fetchVideoInfo(videoId);
+
+        updateStep(1);
+        // AI로 텍스트만 생성 (이미지 프롬프트 제외 - 사용자 이미지 사용)
+        const concepts = await generateConceptWithGemini(videoInfo.title, videoInfo.channel);
+
+        updateStep(2);
+        updateStep(3);
+
+        // 사용자 이미지를 배경으로 3가지 스타일 썸네일 생성
+        const thumbnails = [];
+        for (let i = 0; i < 3 && i < concepts.length; i++) {
+            const concept = concepts[i];
+            const lineColors = concept.lineColors || ['#FF4444', '#FFD700', '#FFFFFF'];
+            const subtextColor = concept.subtextColor || '#FFA500';
+            const recommendedFont = concept.recommendedFont || userFontFamily;
+
+            const dataUrl = await createThumbnailFromUpload(
+                `canvas-${i + 1}`,
+                STYLES[i],
+                hybridImageData, // 사용자 업로드 이미지
+                concept.text,
+                concept.subtext || '',
+                lineColors,
+                subtextColor,
+                recommendedFont
+            );
+            thumbnails.push({
+                dataUrl,
+                text: concept.text,
+                subtext: concept.subtext || '',
+                concept: concept.concept,
+                lineColors,
+                subtextColor,
+                recommendedFont
+            });
+        }
+
+        // 결과 표시
+        document.getElementById('loading-section').classList.add('hidden');
+
+        document.getElementById('original-thumbnail').src = hybridImageData;
+        document.getElementById('analysis-title').textContent = videoInfo.title;
+        document.getElementById('analysis-interpretation').textContent =
+            `내 이미지 + AI 생성 문구: "${concepts[0].concept}"`;
+        document.getElementById('analysis-section').classList.remove('hidden');
+
+        const grid = document.getElementById('generated-grid');
+        grid.innerHTML = '';
+        thumbnails.forEach((t, i) => {
+            grid.appendChild(createCard(t.dataUrl, STYLES[i], t.text, t.concept, i, t.recommendedFont));
+        });
+        document.getElementById('generated-section').classList.remove('hidden');
+
+        document.getElementById('analysis-section').scrollIntoView({ behavior: 'smooth' });
+
+    } catch (err) {
+        document.getElementById('loading-section').classList.add('hidden');
+        showError(`오류: ${err.message}`);
+    }
+
+    btn.disabled = false;
+}
 
 // 업로드된 이미지로 썸네일 생성
 async function generateFromUploadedImage() {

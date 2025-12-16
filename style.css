@@ -1553,3 +1553,40 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+/* ===== Mode Description & Hybrid Steps ===== */
+.mode-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+    text-align: center;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 10px;
+}
+
+.hybrid-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0 10px;
+}
+
+.step-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: white;
+}
+
+.hybrid-step label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
