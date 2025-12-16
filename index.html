@@ -70,20 +70,58 @@
 
             <!-- Step 2: URL 입력 및 스타일 선택 -->
             <div class="input-section glass-card">
-                <h2 class="section-title">🎬 유튜브 영상 입력</h2>
+                <h2 class="section-title">🎬 썸네일 소스 선택</h2>
 
-                <!-- 글로우 네온 레드 검색창 -->
-                <div class="input-wrapper">
-                    <input type="text" id="youtube-url" placeholder="유튜브 URL을 붙여넣으세요 (예: youtube.com/watch?v=...)"
-                        autocomplete="off">
-                    <button id="generate-btn" class="generate-button" disabled>
-                        <svg class="magic-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2 8.6 4.5 10 7 7.5 5.6z" />
-                            <path d="M19 9l-1.5 3L14 13l3.5 1 1.5 3 1.5-3 3.5-1-3.5-1L19 9z" />
-                            <path d="M11.5 9.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5z" />
-                        </svg>
-                        <span>AI 썸네일 생성</span>
+                <!-- 모드 선택 탭 -->
+                <div class="mode-tabs">
+                    <button class="mode-tab active" data-mode="url">
+                        <span class="mode-icon">🔗</span>
+                        <span>유튜브 URL</span>
                     </button>
+                    <button class="mode-tab" data-mode="upload">
+                        <span class="mode-icon">📷</span>
+                        <span>이미지 업로드</span>
+                    </button>
+                </div>
+
+                <!-- 유튜브 URL 모드 -->
+                <div class="input-mode" id="url-mode">
+                    <div class="input-wrapper">
+                        <input type="text" id="youtube-url" placeholder="유튜브 URL을 붙여넣으세요 (예: youtube.com/watch?v=...)"
+                            autocomplete="off">
+                        <button id="generate-btn" class="generate-button" disabled>
+                            <svg class="magic-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2 8.6 4.5 10 7 7.5 5.6z" />
+                                <path d="M19 9l-1.5 3L14 13l3.5 1 1.5 3 1.5-3 3.5-1-3.5-1L19 9z" />
+                                <path d="M11.5 9.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5z" />
+                            </svg>
+                            <span>AI 썸네일 생성</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 이미지 업로드 모드 -->
+                <div class="input-mode hidden" id="upload-mode">
+                    <div class="image-upload-area" id="image-upload-area">
+                        <input type="file" id="image-upload" accept="image/*" hidden>
+                        <div class="upload-placeholder" id="upload-placeholder">
+                            <span class="upload-icon">📷</span>
+                            <p>클릭하거나 이미지를 드래그하세요</p>
+                            <span class="upload-hint">PNG, JPG, WEBP (최대 10MB)</span>
+                        </div>
+                        <img id="uploaded-preview" class="uploaded-preview hidden" alt="업로드된 이미지">
+                    </div>
+                    <div class="upload-text-input">
+                        <input type="text" id="custom-text" placeholder="썸네일에 넣을 문구를 입력하세요 (쉼표로 줄 구분)">
+                        <button id="generate-from-image-btn" class="generate-button" disabled>
+                            <svg class="magic-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M7.5 5.6L5 7l1.4-2.5L5 2l2.5 1.4L10 2 8.6 4.5 10 7 7.5 5.6z" />
+                                <path d="M19 9l-1.5 3L14 13l3.5 1 1.5 3 1.5-3 3.5-1-3.5-1L19 9z" />
+                                <path d="M11.5 9.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5z" />
+                            </svg>
+                            <span>썸네일 만들기</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 영상 톤 선택 카드 -->

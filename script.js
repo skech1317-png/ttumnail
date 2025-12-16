@@ -106,6 +106,8 @@ let userTextAlign = 'right';
 let userFontFamily = 'Nanum Pen Script';
 
 // 초기화
+let uploadedImageData = null; // 업로드된 이미지 데이터 저장
+
 document.addEventListener('DOMContentLoaded', () => {
     const apiInput = document.getElementById('api-key');
     const saveBtn = document.getElementById('save-api-btn');
@@ -135,6 +137,11 @@ document.addEventListener('DOMContentLoaded', () => {
         showApiStatus('✅ API 키가 저장되었습니다!', 'success');
         inputSection.classList.add('active');
         generateBtn.disabled = false;
+        // 이미지 업로드 버튼도 활성화
+        const uploadBtn = document.getElementById('generate-from-image-btn');
+        if (uploadBtn && uploadedImageData) {
+            uploadBtn.disabled = false;
+        }
         hideError();
     };
 
@@ -145,6 +152,85 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 다시 만들기
     regenerateBtn.onclick = generate;
+
+    // ===== 모드 탭 전환 =====
+    document.querySelectorAll('.mode-tab').forEach(tab => {
+        tab.onclick = () => {
+            document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            const mode = tab.dataset.mode;
+            document.getElementById('url-mode').classList.toggle('hidden', mode !== 'url');
+            document.getElementById('upload-mode').classList.toggle('hidden', mode !== 'upload');
+        };
+    });
+
+    // ===== 이미지 업로드 기능 =====
+    const imageUploadArea = document.getElementById('image-upload-area');
+    const imageUploadInput = document.getElementById('image-upload');
+    const uploadPlaceholder = document.getElementById('upload-placeholder');
+    const uploadedPreview = document.getElementById('uploaded-preview');
+    const generateFromImageBtn = document.getElementById('generate-from-image-btn');
+    const customTextInput = document.getElementById('custom-text');
+
+    // 클릭으로 업로드
+    if (imageUploadArea) {
+        imageUploadArea.onclick = () => imageUploadInput.click();
+    }
+
+    // 파일 선택 시
+    if (imageUploadInput) {
+        imageUploadInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) handleImageUpload(file);
+        };
+    }
+
+    // 드래그 앤 드롭
+    if (imageUploadArea) {
+        imageUploadArea.ondragover = (e) => {
+            e.preventDefault();
+            imageUploadArea.classList.add('drag-over');
+        };
+        imageUploadArea.ondragleave = () => {
+            imageUploadArea.classList.remove('drag-over');
+        };
+        imageUploadArea.ondrop = (e) => {
+            e.preventDefault();
+            imageUploadArea.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                handleImageUpload(file);
+            }
+        };
+    }
+
+    // 이미지 업로드 처리
+    function handleImageUpload(file) {
+        if (file.size > 10 * 1024 * 1024) {
+            showError('이미지 크기는 10MB 이하여야 합니다.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            uploadedImageData = e.target.result;
+            uploadedPreview.src = uploadedImageData;
+            uploadedPreview.classList.remove('hidden');
+            uploadPlaceholder.style.display = 'none';
+
+            // API 키가 있으면 버튼 활성화
+            if (apiKey) {
+                generateFromImageBtn.disabled = false;
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // 이미지 모드 생성 버튼
+    if (generateFromImageBtn) {
+        generateFromImageBtn.onclick = generateFromUploadedImage;
+    }
 
     // 옵션 버튼 핸들러 - 글자 위치
     document.querySelectorAll('#text-position .option-btn').forEach(btn => {
@@ -210,6 +296,128 @@ document.addEventListener('DOMContentLoaded', () => {
         alert(`✅ "${fontName}" 폰트가 적용되었습니다.`);
     };
 });
+
+// 업로드된 이미지로 썸네일 생성
+async function generateFromUploadedImage() {
+    const customText = document.getElementById('custom-text').value.trim();
+    const btn = document.getElementById('generate-from-image-btn');
+
+    if (!uploadedImageData) {
+        showError('이미지를 먼저 업로드해주세요.');
+        return;
+    }
+    if (!customText) {
+        showError('썸네일에 넣을 문구를 입력해주세요.');
+        return;
+    }
+
+    hideError();
+    btn.disabled = true;
+
+    document.getElementById('loading-section').classList.remove('hidden');
+    document.getElementById('analysis-section').classList.add('hidden');
+    document.getElementById('generated-section').classList.add('hidden');
+
+    try {
+        updateStep(0);
+        await new Promise(r => setTimeout(r, 500));
+
+        updateStep(1);
+        // 기본 줄별 색상 생성
+        const lines = customText.split(/[,\n]/).map(s => s.trim()).filter(s => s);
+        const defaultColors = ['#FF4444', '#FFD700', '#FFFFFF', '#00FF88'];
+        const lineColors = lines.map((_, i) => defaultColors[i % defaultColors.length]);
+
+        updateStep(2);
+        await new Promise(r => setTimeout(r, 500));
+
+        updateStep(3);
+
+        // 3가지 스타일로 썸네일 생성
+        const thumbnails = [];
+        for (let i = 0; i < 3; i++) {
+            const dataUrl = await createThumbnailFromUpload(
+                `canvas-${i + 1}`,
+                STYLES[i],
+                uploadedImageData,
+                customText,
+                '',
+                lineColors,
+                '#FFA500',
+                null
+            );
+            thumbnails.push({
+                dataUrl,
+                text: customText,
+                subtext: '',
+                concept: STYLES[i].name,
+                lineColors,
+                subtextColor: '#FFA500',
+                recommendedFont: userFontFamily
+            });
+        }
+
+        // 결과 표시
+        document.getElementById('loading-section').classList.add('hidden');
+
+        document.getElementById('original-thumbnail').src = uploadedImageData;
+        document.getElementById('analysis-title').textContent = '사용자 업로드 이미지';
+        document.getElementById('analysis-interpretation').textContent =
+            `업로드한 이미지에 3가지 스타일의 텍스트를 적용했습니다.`;
+        document.getElementById('analysis-section').classList.remove('hidden');
+
+        const grid = document.getElementById('generated-grid');
+        grid.innerHTML = '';
+        thumbnails.forEach((t, i) => {
+            grid.appendChild(createCard(t.dataUrl, STYLES[i], t.text, t.concept, i, t.recommendedFont));
+        });
+        document.getElementById('generated-section').classList.remove('hidden');
+
+        document.getElementById('analysis-section').scrollIntoView({ behavior: 'smooth' });
+
+    } catch (err) {
+        document.getElementById('loading-section').classList.add('hidden');
+        showError(`오류: ${err.message}`);
+    }
+
+    btn.disabled = false;
+}
+
+// 업로드 이미지용 썸네일 생성 함수
+async function createThumbnailFromUpload(canvasId, style, imageDataUrl, text, subtext, lineColors = null, subtextColor = null, recommendedFont = null) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    const w = 1280, h = 720;
+    canvas.width = w;
+    canvas.height = h;
+
+    try {
+        const img = await loadImage(imageDataUrl);
+        // 이미지 비율 맞춰 그리기
+        const scale = Math.max(w / img.width, h / img.height);
+        const nw = img.width * scale, nh = img.height * scale;
+        const ox = (w - nw) / 2, oy = (h - nh) / 2;
+        ctx.drawImage(img, ox, oy, nw, nh);
+    } catch {
+        // 기본 배경
+        const g = ctx.createLinearGradient(0, 0, w, h);
+        g.addColorStop(0, '#1a1a2e');
+        g.addColorStop(1, '#16213e');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+    }
+
+    // 추천 폰트가 있으면 스타일에 적용
+    const modifiedStyle = { ...style };
+    if (recommendedFont) {
+        modifiedStyle.fontFamily = recommendedFont;
+    }
+
+    applyOverlay(ctx, modifiedStyle.overlay, w, h);
+    drawText(ctx, text, subtext, modifiedStyle, w, h, lineColors, subtextColor);
+
+    return canvas.toDataURL('image/png');
+}
 
 function showApiStatus(msg, type) {
     const status = document.getElementById('api-status');
