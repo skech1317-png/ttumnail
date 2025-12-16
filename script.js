@@ -114,6 +114,8 @@ let uploadedImageData = null; // 업로드된 이미지 데이터 저장
 let hybridImageData = null;   // 하이브리드 모드 이미지 데이터
 let savedThumbnailsData = []; // 생성된 썸네일 정보 저장 (재생성용)
 let currentImageSource = null; // 현재 사용 중인 이미지 소스
+let selectedStyleForEdit = 0;  // 선택된 스타일 (0=전체, 1,2,3=개별)
+let liveSelectedFont = 'Nanum Pen Script'; // 실시간 선택된 서체
 
 document.addEventListener('DOMContentLoaded', () => {
     const apiInput = document.getElementById('api-key');
@@ -456,6 +458,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (applyAdjustmentsBtn) {
         applyAdjustmentsBtn.onclick = applyLiveAdjustments;
     }
+
+    // ===== 스타일 선택 탭 핸들러 =====
+    document.querySelectorAll('.style-tab').forEach(tab => {
+        tab.onclick = () => {
+            document.querySelectorAll('.style-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            selectedStyleForEdit = parseInt(tab.dataset.style); // 0=전체, 1,2,3=개별
+        };
+    });
+
+    // ===== 실시간 서체 선택 핸들러 =====
+    document.querySelectorAll('#live-font-select .font-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('#live-font-select .font-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            liveSelectedFont = btn.dataset.font;
+        };
+    });
 });
 
 // 하이브리드 모드: 사용자 이미지 + AI 텍스트 생성
@@ -557,7 +577,7 @@ async function generateHybridThumbnail() {
     btn.disabled = false;
 }
 
-// 실시간 조정 적용 함수
+// 실시간 조정 적용 함수 (개별 스타일 지원)
 async function applyLiveAdjustments() {
     if (!savedThumbnailsData || savedThumbnailsData.length === 0) {
         showError('먼저 썸네일을 생성해주세요.');
@@ -565,10 +585,11 @@ async function applyLiveAdjustments() {
     }
 
     // 슬라이더 값 가져오기
-    userFontSize = parseInt(document.getElementById('live-font-size').value);
-    userLetterSpacing = parseInt(document.getElementById('live-letter-spacing').value);
-    userVerticalPosition = parseInt(document.getElementById('live-vertical-pos').value);
-    userHorizontalMargin = parseInt(document.getElementById('live-horizontal-margin').value);
+    const newFontSize = parseInt(document.getElementById('live-font-size').value);
+    const newLetterSpacing = parseInt(document.getElementById('live-letter-spacing').value);
+    const newVerticalPos = parseInt(document.getElementById('live-vertical-pos').value);
+    const newHorizontalMargin = parseInt(document.getElementById('live-horizontal-margin').value);
+    const newFont = liveSelectedFont;
 
     const btn = document.getElementById('apply-adjustments-btn');
     btn.disabled = true;
@@ -581,6 +602,24 @@ async function applyLiveAdjustments() {
         // 저장된 데이터로 썸네일 재생성
         for (let i = 0; i < savedThumbnailsData.length; i++) {
             const t = savedThumbnailsData[i];
+            const styleIndex = i + 1; // 1, 2, 3
+
+            // 선택된 스타일만 조정 적용 (0=전체, 1,2,3=개별)
+            if (selectedStyleForEdit === 0 || selectedStyleForEdit === styleIndex) {
+                // 조정값 적용
+                userFontSize = newFontSize;
+                userLetterSpacing = newLetterSpacing;
+                userVerticalPosition = newVerticalPos;
+                userHorizontalMargin = newHorizontalMargin;
+
+                // 서체도 저장 (개별 적용 시)
+                if (selectedStyleForEdit === styleIndex) {
+                    savedThumbnailsData[i].recommendedFont = newFont;
+                } else if (selectedStyleForEdit === 0) {
+                    savedThumbnailsData[i].recommendedFont = newFont;
+                }
+            }
+
             const dataUrl = await createThumbnailFromUpload(
                 `canvas-${i + 1}`,
                 STYLES[i],
@@ -589,10 +628,10 @@ async function applyLiveAdjustments() {
                 t.subtext,
                 t.lineColors,
                 t.subtextColor,
-                t.recommendedFont
+                savedThumbnailsData[i].recommendedFont
             );
             savedThumbnailsData[i].dataUrl = dataUrl;
-            grid.appendChild(createCard(dataUrl, STYLES[i], t.text, t.concept, i, t.recommendedFont));
+            grid.appendChild(createCard(dataUrl, STYLES[i], t.text, t.concept, i, savedThumbnailsData[i].recommendedFont));
         }
     } catch (err) {
         showError(`조정 적용 오류: ${err.message}`);

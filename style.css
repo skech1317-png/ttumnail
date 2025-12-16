@@ -1623,3 +1623,80 @@ body {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(255, 45, 85, 0.4);
 }
+
+/* ===== Style Selection Tabs ===== */
+.style-select-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.style-tab {
+    flex: 1;
+    min-width: 80px;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.style-tab:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.style-tab.active {
+    background: var(--accent-gradient);
+    color: white;
+    border-color: var(--accent-primary);
+}
+
+/* ===== Font Selection Row ===== */
+.font-select-row {
+    margin-bottom: 20px;
+}
+
+.font-select-row>label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+.font-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.font-btn {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.font-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.font-btn.active {
+    background: rgba(255, 45, 85, 0.2);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
