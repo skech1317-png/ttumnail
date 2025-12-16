@@ -172,6 +172,41 @@
                     </div>
                 </div>
 
+                <!-- 텍스트 미세조정 -->
+                <div class="text-adjustments">
+                    <h3 class="adjustment-title">🎛️ 텍스트 미세조정</h3>
+                    <div class="slider-group">
+                        <div class="slider-item">
+                            <label>📏 글자 크기</label>
+                            <div class="slider-wrapper">
+                                <input type="range" id="font-size-slider" min="60" max="150" value="105">
+                                <span id="font-size-value">105px</span>
+                            </div>
+                        </div>
+                        <div class="slider-item">
+                            <label>↔️ 자간 (글자 간격)</label>
+                            <div class="slider-wrapper">
+                                <input type="range" id="letter-spacing-slider" min="-10" max="30" value="0">
+                                <span id="letter-spacing-value">0px</span>
+                            </div>
+                        </div>
+                        <div class="slider-item">
+                            <label>⬆️ 세로 위치</label>
+                            <div class="slider-wrapper">
+                                <input type="range" id="vertical-position-slider" min="30" max="90" value="72">
+                                <span id="vertical-position-value">72%</span>
+                            </div>
+                        </div>
+                        <div class="slider-item">
+                            <label>↔️ 가로 여백</label>
+                            <div class="slider-wrapper">
+                                <input type="range" id="horizontal-margin-slider" min="20" max="150" value="60">
+                                <span id="horizontal-margin-value">60px</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 커스텀 폰트 -->
                 <div class="custom-font-section">
                     <label class="option-label">🎨 커스텀 폰트 (선택)</label>

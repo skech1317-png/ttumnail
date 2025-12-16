@@ -104,6 +104,10 @@ const STYLES = [
 // 사용자 선택 옵션
 let userTextAlign = 'right';
 let userFontFamily = 'Nanum Pen Script';
+let userFontSize = 105;        // 글자 크기
+let userLetterSpacing = 0;     // 자간
+let userVerticalPosition = 72; // 세로 위치 (%)
+let userHorizontalMargin = 60; // 가로 여백
 
 // 초기화
 let uploadedImageData = null; // 업로드된 이미지 데이터 저장
@@ -295,6 +299,43 @@ document.addEventListener('DOMContentLoaded', () => {
         hideError();
         alert(`✅ "${fontName}" 폰트가 적용되었습니다.`);
     };
+
+    // ===== 텍스트 미세조정 슬라이더 핸들러 =====
+    const fontSizeSlider = document.getElementById('font-size-slider');
+    const fontSizeValue = document.getElementById('font-size-value');
+    if (fontSizeSlider) {
+        fontSizeSlider.oninput = () => {
+            userFontSize = parseInt(fontSizeSlider.value);
+            fontSizeValue.textContent = userFontSize + 'px';
+        };
+    }
+
+    const letterSpacingSlider = document.getElementById('letter-spacing-slider');
+    const letterSpacingValue = document.getElementById('letter-spacing-value');
+    if (letterSpacingSlider) {
+        letterSpacingSlider.oninput = () => {
+            userLetterSpacing = parseInt(letterSpacingSlider.value);
+            letterSpacingValue.textContent = userLetterSpacing + 'px';
+        };
+    }
+
+    const verticalPositionSlider = document.getElementById('vertical-position-slider');
+    const verticalPositionValue = document.getElementById('vertical-position-value');
+    if (verticalPositionSlider) {
+        verticalPositionSlider.oninput = () => {
+            userVerticalPosition = parseInt(verticalPositionSlider.value);
+            verticalPositionValue.textContent = userVerticalPosition + '%';
+        };
+    }
+
+    const horizontalMarginSlider = document.getElementById('horizontal-margin-slider');
+    const horizontalMarginValue = document.getElementById('horizontal-margin-value');
+    if (horizontalMarginSlider) {
+        horizontalMarginSlider.oninput = () => {
+            userHorizontalMargin = parseInt(horizontalMarginSlider.value);
+            horizontalMarginValue.textContent = userHorizontalMargin + 'px';
+        };
+    }
 });
 
 // 업로드된 이미지로 썸네일 생성
@@ -710,7 +751,7 @@ function createTextGradient(ctx, x, y, fontSize, textAlign, baseColor) {
     return gradient;
 }
 
-// 텍스트 그리기 (메인 + 서브) - 줄별 색상 지원
+// 텍스트 그리기 (메인 + 서브) - 줄별 색상 지원 + 사용자 조절 적용
 function drawText(ctx, text, subtext, style, w, h, lineColors = null, subtextColor = null) {
     if (!text) return;
     ctx.save();
@@ -722,24 +763,33 @@ function drawText(ctx, text, subtext, style, w, h, lineColors = null, subtextCol
 
     // 메인 텍스트 (여러 줄 지원)
     const lines = text.split(/[,\n]/).map(s => s.trim()).filter(s => s);
-    const mainFontSize = style.fontSize || 65;
+
+    // 사용자 조절값 적용 (기본값과 병합)
+    const mainFontSize = userFontSize || style.fontSize || 65;
+    const letterSpacing = userLetterSpacing || 0;
+    const verticalPos = userVerticalPosition || 72;
+    const horizontalMargin = userHorizontalMargin || 60;
+
     const subFontSize = Math.floor(mainFontSize * 0.55);
 
     // 사용자 선택 폰트 적용
     const fontFamily = userFontFamily || style.fontFamily || 'Nanum Pen Script';
     ctx.font = `700 ${mainFontSize}px "${fontFamily}", "Noto Sans KR", sans-serif`;
 
+    // 자간 적용 (letterSpacing은 CSS와 다르게 캔버스에서 수동 처리)
+    ctx.letterSpacing = `${letterSpacing}px`;
+
     // 사용자 선택 위치 적용
     const textAlign = userTextAlign || style.textAlign || 'right';
     ctx.textAlign = textAlign;
     ctx.textBaseline = 'middle';
 
-    // 텍스트 위치 계산 (하단 배치)
+    // 텍스트 위치 계산 (사용자 조절 적용)
     const totalHeight = lines.length * (mainFontSize * 1.1) + (subtext ? subFontSize * 1.3 : 0);
-    // Y 위치: 화면 하단에 배치 (약 72% 위치에서 시작)
-    let startY = h * 0.72 - (totalHeight / 2);
-    // 사용자 선택 위치에 따라 x 좌표 결정 (좌우)
-    let x = textAlign === 'left' ? 60 : textAlign === 'right' ? w - 60 : w / 2;
+    // Y 위치: 사용자 지정 세로 위치 적용
+    let startY = h * (verticalPos / 100) - (totalHeight / 2);
+    // 사용자 선택 위치에 따라 x 좌표 결정 (사용자 지정 여백 적용)
+    let x = textAlign === 'left' ? horizontalMargin : textAlign === 'right' ? w - horizontalMargin : w / 2;
 
     // 그림자 설정 (더 강하게)
     ctx.shadowColor = 'rgba(0,0,0,1)';
