@@ -112,6 +112,8 @@ let userHorizontalMargin = 60; // 가로 여백
 // 초기화
 let uploadedImageData = null; // 업로드된 이미지 데이터 저장
 let hybridImageData = null;   // 하이브리드 모드 이미지 데이터
+let savedThumbnailsData = []; // 생성된 썸네일 정보 저장 (재생성용)
+let currentImageSource = null; // 현재 사용 중인 이미지 소스
 
 document.addEventListener('DOMContentLoaded', () => {
     const apiInput = document.getElementById('api-key');
@@ -415,6 +417,45 @@ document.addEventListener('DOMContentLoaded', () => {
             horizontalMarginValue.textContent = userHorizontalMargin + 'px';
         };
     }
+
+    // ===== 실시간 조정 슬라이더 핸들러 =====
+    const liveFontSize = document.getElementById('live-font-size');
+    const liveFontSizeValue = document.getElementById('live-font-size-value');
+    if (liveFontSize) {
+        liveFontSize.oninput = () => {
+            liveFontSizeValue.textContent = liveFontSize.value + 'px';
+        };
+    }
+
+    const liveLetterSpacing = document.getElementById('live-letter-spacing');
+    const liveLetterSpacingValue = document.getElementById('live-letter-spacing-value');
+    if (liveLetterSpacing) {
+        liveLetterSpacing.oninput = () => {
+            liveLetterSpacingValue.textContent = liveLetterSpacing.value + 'px';
+        };
+    }
+
+    const liveVerticalPos = document.getElementById('live-vertical-pos');
+    const liveVerticalPosValue = document.getElementById('live-vertical-pos-value');
+    if (liveVerticalPos) {
+        liveVerticalPos.oninput = () => {
+            liveVerticalPosValue.textContent = liveVerticalPos.value + '%';
+        };
+    }
+
+    const liveHorizontalMargin = document.getElementById('live-horizontal-margin');
+    const liveHorizontalMarginValue = document.getElementById('live-horizontal-margin-value');
+    if (liveHorizontalMargin) {
+        liveHorizontalMargin.oninput = () => {
+            liveHorizontalMarginValue.textContent = liveHorizontalMargin.value + 'px';
+        };
+    }
+
+    // 조정 적용 버튼
+    const applyAdjustmentsBtn = document.getElementById('apply-adjustments-btn');
+    if (applyAdjustmentsBtn) {
+        applyAdjustmentsBtn.onclick = applyLiveAdjustments;
+    }
 });
 
 // 하이브리드 모드: 사용자 이미지 + AI 텍스트 생성
@@ -502,6 +543,10 @@ async function generateHybridThumbnail() {
         });
         document.getElementById('generated-section').classList.remove('hidden');
 
+        // 썸네일 데이터 저장 (재생성용)
+        savedThumbnailsData = thumbnails;
+        currentImageSource = hybridImageData;
+
         document.getElementById('analysis-section').scrollIntoView({ behavior: 'smooth' });
 
     } catch (err) {
@@ -510,6 +555,51 @@ async function generateHybridThumbnail() {
     }
 
     btn.disabled = false;
+}
+
+// 실시간 조정 적용 함수
+async function applyLiveAdjustments() {
+    if (!savedThumbnailsData || savedThumbnailsData.length === 0) {
+        showError('먼저 썸네일을 생성해주세요.');
+        return;
+    }
+
+    // 슬라이더 값 가져오기
+    userFontSize = parseInt(document.getElementById('live-font-size').value);
+    userLetterSpacing = parseInt(document.getElementById('live-letter-spacing').value);
+    userVerticalPosition = parseInt(document.getElementById('live-vertical-pos').value);
+    userHorizontalMargin = parseInt(document.getElementById('live-horizontal-margin').value);
+
+    const btn = document.getElementById('apply-adjustments-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 적용 중...';
+
+    try {
+        const grid = document.getElementById('generated-grid');
+        grid.innerHTML = '';
+
+        // 저장된 데이터로 썸네일 재생성
+        for (let i = 0; i < savedThumbnailsData.length; i++) {
+            const t = savedThumbnailsData[i];
+            const dataUrl = await createThumbnailFromUpload(
+                `canvas-${i + 1}`,
+                STYLES[i],
+                currentImageSource,
+                t.text,
+                t.subtext,
+                t.lineColors,
+                t.subtextColor,
+                t.recommendedFont
+            );
+            savedThumbnailsData[i].dataUrl = dataUrl;
+            grid.appendChild(createCard(dataUrl, STYLES[i], t.text, t.concept, i, t.recommendedFont));
+        }
+    } catch (err) {
+        showError(`조정 적용 오류: ${err.message}`);
+    }
+
+    btn.disabled = false;
+    btn.textContent = '✨ 조정 적용';
 }
 
 // 업로드된 이미지로 썸네일 생성
@@ -598,13 +688,16 @@ async function generateFromUploadedImage() {
     btn.disabled = false;
 }
 
-// 업로드 이미지용 썸네일 생성 함수
+// 업로드 이미지용 썸네일 생성 함수 (3가지 다른 필터 적용)
 async function createThumbnailFromUpload(canvasId, style, imageDataUrl, text, subtext, lineColors = null, subtextColor = null, recommendedFont = null) {
     const canvas = document.getElementById(canvasId);
     const ctx = canvas.getContext('2d');
     const w = 1280, h = 720;
     canvas.width = w;
     canvas.height = h;
+
+    // 캔버스 번호로 다른 필터 적용
+    const canvasNum = parseInt(canvasId.replace('canvas-', ''));
 
     try {
         const img = await loadImage(imageDataUrl);
@@ -613,6 +706,9 @@ async function createThumbnailFromUpload(canvasId, style, imageDataUrl, text, su
         const nw = img.width * scale, nh = img.height * scale;
         const ox = (w - nw) / 2, oy = (h - nh) / 2;
         ctx.drawImage(img, ox, oy, nw, nh);
+
+        // 캔버스별 다른 이미지 필터 적용
+        applyImageFilter(ctx, w, h, canvasNum);
     } catch {
         // 기본 배경
         const g = ctx.createLinearGradient(0, 0, w, h);
@@ -632,6 +728,48 @@ async function createThumbnailFromUpload(canvasId, style, imageDataUrl, text, su
     drawText(ctx, text, subtext, modifiedStyle, w, h, lineColors, subtextColor);
 
     return canvas.toDataURL('image/png');
+}
+
+// 이미지 필터 적용 함수 (3가지 스타일)
+function applyImageFilter(ctx, w, h, filterNum) {
+    ctx.save();
+
+    if (filterNum === 1) {
+        // 스타일 1: 따뜻한 톤 (황금빛)
+        ctx.globalCompositeOperation = 'overlay';
+        const warm = ctx.createLinearGradient(0, 0, w, h);
+        warm.addColorStop(0, 'rgba(255, 180, 100, 0.2)');
+        warm.addColorStop(1, 'rgba(180, 80, 40, 0.15)');
+        ctx.fillStyle = warm;
+        ctx.fillRect(0, 0, w, h);
+    } else if (filterNum === 2) {
+        // 스타일 2: 시네마틱 (청록)
+        ctx.globalCompositeOperation = 'overlay';
+        const cool = ctx.createLinearGradient(0, 0, w, h);
+        cool.addColorStop(0, 'rgba(0, 100, 150, 0.2)');
+        cool.addColorStop(1, 'rgba(50, 50, 80, 0.15)');
+        ctx.fillStyle = cool;
+        ctx.fillRect(0, 0, w, h);
+
+        // 비네팅 효과
+        ctx.globalCompositeOperation = 'multiply';
+        const vignette = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, w * 0.8);
+        vignette.addColorStop(0, 'rgba(255,255,255,1)');
+        vignette.addColorStop(1, 'rgba(0,0,0,0.3)');
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, w, h);
+    } else if (filterNum === 3) {
+        // 스타일 3: 드라마틱 (고대비 + 빈티지)
+        ctx.globalCompositeOperation = 'soft-light';
+        const dramatic = ctx.createLinearGradient(0, 0, 0, h);
+        dramatic.addColorStop(0, 'rgba(100, 50, 30, 0.25)');
+        dramatic.addColorStop(0.5, 'rgba(255, 200, 150, 0.1)');
+        dramatic.addColorStop(1, 'rgba(30, 20, 30, 0.3)');
+        ctx.fillStyle = dramatic;
+        ctx.fillRect(0, 0, w, h);
+    }
+
+    ctx.restore();
 }
 
 // 유튜브 URL에서 비디오 ID 추출

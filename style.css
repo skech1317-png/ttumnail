@@ -1590,3 +1590,36 @@ body {
     font-weight: 600;
     color: var(--text-primary);
 }
+
+/* ===== Live Adjustments in Result Section ===== */
+.live-adjustments {
+    margin-top: 32px;
+    padding: 24px;
+    background: rgba(255, 45, 85, 0.05);
+    border-radius: 16px;
+    border: 1px solid var(--accent-primary);
+}
+
+.live-adjustments .slider-group {
+    margin-bottom: 20px;
+}
+
+.apply-btn {
+    width: 100%;
+    padding: 16px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-family: inherit;
+    color: white;
+    background: var(--accent-gradient);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 4px 15px rgba(255, 45, 85, 0.3);
+}
+
+.apply-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 45, 85, 0.4);
+}
