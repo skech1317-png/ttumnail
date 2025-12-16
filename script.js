@@ -730,46 +730,73 @@ async function createThumbnailFromUpload(canvasId, style, imageDataUrl, text, su
     return canvas.toDataURL('image/png');
 }
 
-// 이미지 필터 적용 함수 (3가지 스타일)
+// 이미지 필터 적용 함수 (3가지 완전히 다른 스타일)
 function applyImageFilter(ctx, w, h, filterNum) {
-    ctx.save();
-
     if (filterNum === 1) {
-        // 스타일 1: 따뜻한 톤 (황금빛)
+        // 스타일 1: 원본 그대로 (약간의 보정만)
+        // 밝기와 대비 약간 향상
+        ctx.save();
         ctx.globalCompositeOperation = 'overlay';
-        const warm = ctx.createLinearGradient(0, 0, w, h);
-        warm.addColorStop(0, 'rgba(255, 180, 100, 0.2)');
-        warm.addColorStop(1, 'rgba(180, 80, 40, 0.15)');
-        ctx.fillStyle = warm;
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
         ctx.fillRect(0, 0, w, h);
-    } else if (filterNum === 2) {
-        // 스타일 2: 시네마틱 (청록)
-        ctx.globalCompositeOperation = 'overlay';
-        const cool = ctx.createLinearGradient(0, 0, w, h);
-        cool.addColorStop(0, 'rgba(0, 100, 150, 0.2)');
-        cool.addColorStop(1, 'rgba(50, 50, 80, 0.15)');
-        ctx.fillStyle = cool;
-        ctx.fillRect(0, 0, w, h);
-
-        // 비네팅 효과
-        ctx.globalCompositeOperation = 'multiply';
-        const vignette = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, w * 0.8);
-        vignette.addColorStop(0, 'rgba(255,255,255,1)');
-        vignette.addColorStop(1, 'rgba(0,0,0,0.3)');
-        ctx.fillStyle = vignette;
-        ctx.fillRect(0, 0, w, h);
-    } else if (filterNum === 3) {
-        // 스타일 3: 드라마틱 (고대비 + 빈티지)
-        ctx.globalCompositeOperation = 'soft-light';
-        const dramatic = ctx.createLinearGradient(0, 0, 0, h);
-        dramatic.addColorStop(0, 'rgba(100, 50, 30, 0.25)');
-        dramatic.addColorStop(0.5, 'rgba(255, 200, 150, 0.1)');
-        dramatic.addColorStop(1, 'rgba(30, 20, 30, 0.3)');
-        ctx.fillStyle = dramatic;
-        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+        return;
     }
 
-    ctx.restore();
+    // 이미지 데이터 가져오기
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const data = imageData.data;
+
+    if (filterNum === 2) {
+        // 스타일 2: 흑백 + 고대비 (드라마틱)
+        for (let i = 0; i < data.length; i += 4) {
+            // 그레이스케일 변환
+            const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+
+            // 고대비 적용
+            let val = gray;
+            val = val > 128 ? val + (val - 128) * 0.5 : val - (128 - val) * 0.3;
+            val = Math.max(0, Math.min(255, val));
+
+            data[i] = val;     // R
+            data[i + 1] = val; // G
+            data[i + 2] = val; // B
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        // 약간의 틴트 추가 (파란빛)
+        ctx.save();
+        ctx.globalCompositeOperation = 'overlay';
+        ctx.fillStyle = 'rgba(100, 150, 200, 0.15)';
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+
+    } else if (filterNum === 3) {
+        // 스타일 3: 듀오톤 (2색 변환 - 빨강/노랑 계열)
+        const color1 = { r: 30, g: 0, b: 50 };     // 어두운 보라
+        const color2 = { r: 255, g: 200, b: 100 }; // 밝은 황금색
+
+        for (let i = 0; i < data.length; i += 4) {
+            // 그레이스케일로 변환
+            const gray = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+
+            // 두 색상 사이에서 보간
+            data[i] = color1.r + (color2.r - color1.r) * gray;     // R
+            data[i + 1] = color1.g + (color2.g - color1.g) * gray; // G
+            data[i + 2] = color1.b + (color2.b - color1.b) * gray; // B
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        // 빈티지 느낌 추가
+        ctx.save();
+        ctx.globalCompositeOperation = 'soft-light';
+        const vintage = ctx.createLinearGradient(0, 0, w, h);
+        vintage.addColorStop(0, 'rgba(255, 180, 100, 0.2)');
+        vintage.addColorStop(1, 'rgba(100, 50, 50, 0.1)');
+        ctx.fillStyle = vintage;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+    }
 }
 
 // 유튜브 URL에서 비디오 ID 추출
