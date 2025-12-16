@@ -730,70 +730,91 @@ async function createThumbnailFromUpload(canvasId, style, imageDataUrl, text, su
     return canvas.toDataURL('image/png');
 }
 
-// 이미지 필터 적용 함수 (3가지 완전히 다른 스타일)
+// 이미지 필터 적용 함수 (3가지 완전히 다른 분위기)
 function applyImageFilter(ctx, w, h, filterNum) {
-    if (filterNum === 1) {
-        // 스타일 1: 원본 그대로 (약간의 보정만)
-        // 밝기와 대비 약간 향상
-        ctx.save();
-        ctx.globalCompositeOperation = 'overlay';
-        ctx.fillStyle = 'rgba(255,255,255,0.05)';
-        ctx.fillRect(0, 0, w, h);
-        ctx.restore();
-        return;
-    }
-
     // 이미지 데이터 가져오기
     const imageData = ctx.getImageData(0, 0, w, h);
     const data = imageData.data;
 
-    if (filterNum === 2) {
-        // 스타일 2: 흑백 + 고대비 (드라마틱)
+    if (filterNum === 1) {
+        // 스타일 1: 밝은 낮 분위기 (선명 + 채도 증가)
         for (let i = 0; i < data.length; i += 4) {
-            // 그레이스케일 변환
-            const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-
-            // 고대비 적용
-            let val = gray;
-            val = val > 128 ? val + (val - 128) * 0.5 : val - (128 - val) * 0.3;
-            val = Math.max(0, Math.min(255, val));
-
-            data[i] = val;     // R
-            data[i + 1] = val; // G
-            data[i + 2] = val; // B
+            // 밝기 증가 + 대비 강화
+            data[i] = Math.min(255, data[i] * 1.1 + 10);       // R
+            data[i + 1] = Math.min(255, data[i + 1] * 1.1 + 10); // G
+            data[i + 2] = Math.min(255, data[i + 2] * 1.05);   // B (약간만)
         }
         ctx.putImageData(imageData, 0, 0);
 
-        // 약간의 틴트 추가 (파란빛)
+        // 햇빛 효과
         ctx.save();
         ctx.globalCompositeOperation = 'overlay';
-        ctx.fillStyle = 'rgba(100, 150, 200, 0.15)';
+        const sunlight = ctx.createRadialGradient(w * 0.8, h * 0.2, 0, w * 0.8, h * 0.2, w * 0.6);
+        sunlight.addColorStop(0, 'rgba(255, 255, 200, 0.25)');
+        sunlight.addColorStop(1, 'rgba(255, 255, 200, 0)');
+        ctx.fillStyle = sunlight;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+
+    } else if (filterNum === 2) {
+        // 스타일 2: 어두운 밤 분위기 (어둡게 + 푸른 빛 + 달빛)
+        for (let i = 0; i < data.length; i += 4) {
+            // 전체적으로 어둡게 + 푸른 톤
+            data[i] = Math.max(0, data[i] * 0.5);       // R (많이 줄임)
+            data[i + 1] = Math.max(0, data[i + 1] * 0.6); // G
+            data[i + 2] = Math.min(255, data[i + 2] * 0.8 + 30); // B (푸른빛 추가)
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        // 달빛 효과
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        const moonlight = ctx.createRadialGradient(w * 0.7, h * 0.15, 0, w * 0.7, h * 0.15, w * 0.5);
+        moonlight.addColorStop(0, 'rgba(200, 220, 255, 0.35)');
+        moonlight.addColorStop(0.5, 'rgba(100, 150, 200, 0.1)');
+        moonlight.addColorStop(1, 'rgba(0, 0, 50, 0)');
+        ctx.fillStyle = moonlight;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+
+        // 비네팅 효과
+        ctx.save();
+        ctx.globalCompositeOperation = 'multiply';
+        const vignette = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, w * 0.9);
+        vignette.addColorStop(0, 'rgba(255,255,255,1)');
+        vignette.addColorStop(1, 'rgba(0,0,30,0.6)');
+        ctx.fillStyle = vignette;
         ctx.fillRect(0, 0, w, h);
         ctx.restore();
 
     } else if (filterNum === 3) {
-        // 스타일 3: 듀오톤 (2색 변환 - 빨강/노랑 계열)
-        const color1 = { r: 30, g: 0, b: 50 };     // 어두운 보라
-        const color2 = { r: 255, g: 200, b: 100 }; // 밝은 황금색
-
+        // 스타일 3: 따뜻한 노을/횃불 분위기 (오렌지 + 불빛 효과)
         for (let i = 0; i < data.length; i += 4) {
-            // 그레이스케일로 변환
-            const gray = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
-
-            // 두 색상 사이에서 보간
-            data[i] = color1.r + (color2.r - color1.r) * gray;     // R
-            data[i + 1] = color1.g + (color2.g - color1.g) * gray; // G
-            data[i + 2] = color1.b + (color2.b - color1.b) * gray; // B
+            // 따뜻한 톤으로 변환
+            data[i] = Math.min(255, data[i] * 1.15 + 20);     // R (빨강 강조)
+            data[i + 1] = Math.max(0, data[i + 1] * 0.9 + 10); // G (약간 줄임)
+            data[i + 2] = Math.max(0, data[i + 2] * 0.6);     // B (파랑 많이 줄임)
         }
         ctx.putImageData(imageData, 0, 0);
 
-        // 빈티지 느낌 추가
+        // 횃불/불빛 효과
         ctx.save();
-        ctx.globalCompositeOperation = 'soft-light';
-        const vintage = ctx.createLinearGradient(0, 0, w, h);
-        vintage.addColorStop(0, 'rgba(255, 180, 100, 0.2)');
-        vintage.addColorStop(1, 'rgba(100, 50, 50, 0.1)');
-        ctx.fillStyle = vintage;
+        ctx.globalCompositeOperation = 'overlay';
+        const firelight = ctx.createRadialGradient(w * 0.3, h * 0.7, 0, w * 0.3, h * 0.7, w * 0.6);
+        firelight.addColorStop(0, 'rgba(255, 150, 50, 0.4)');
+        firelight.addColorStop(0.3, 'rgba(255, 100, 30, 0.2)');
+        firelight.addColorStop(1, 'rgba(100, 30, 0, 0)');
+        ctx.fillStyle = firelight;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+
+        // 상단 어두운 그라데이션
+        ctx.save();
+        ctx.globalCompositeOperation = 'multiply';
+        const topDark = ctx.createLinearGradient(0, 0, 0, h * 0.5);
+        topDark.addColorStop(0, 'rgba(50, 20, 10, 0.5)');
+        topDark.addColorStop(1, 'rgba(255, 255, 255, 1)');
+        ctx.fillStyle = topDark;
         ctx.fillRect(0, 0, w, h);
         ctx.restore();
     }
